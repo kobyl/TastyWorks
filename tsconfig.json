@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "lib": ["esnext", "dom"],
+    "module": "commonjs",
+    "target": "es6",
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "sourceMap": false,
+    "declaration": true,
+    "outDir": "dist",
+    "removeComments": false,
+    "typeRoots": ["node_modules/@types"],
+    "jsx": "react"
+  },
+  "files": ["src/exports.ts"],
+  "exclude": ["node_modules"]
+}

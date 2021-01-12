@@ -22,8 +22,9 @@ let _user = {
     accounts: []
 };
 
-module.exports = {
-    setUser: user => {
+const TastyWorks: any = {
+
+    setUser: (user) => {
         _user = {
             ..._user,
             ...user
@@ -38,7 +39,7 @@ module.exports = {
     balances: (account_id) => _balances(_headers, account_id),
     positions: (account_id) => _positions(_headers, account_id),
     marketMetrics: (account_id, tickers) => _marketMetrics(_headers, account_id, tickers),
-    optionChain: (account_id, ticker) =>  _optionChain(_headers, account_id, ticker),
+    optionChain: (account_id, ticker) => _optionChain(_headers, account_id, ticker),
     liveOrders: (account_id) => _liveOrders(_headers, account_id),
     executeOrder: (account_id, symbol, price, quantity) => _executeOrder(_headers, account_id, symbol, price, quantity),
     cancelOrder: (account_id, order_id) => _cancelOrder(_headers, account_id, order_id),
@@ -46,3 +47,5 @@ module.exports = {
     cometd: (data) => _cometd(_headers, data),
     history: (account_id, start_date, end_date) => _history(_headers, account_id, start_date, end_date)
 }
+
+export default TastyWorks;

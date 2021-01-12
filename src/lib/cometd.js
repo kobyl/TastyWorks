@@ -75,7 +75,7 @@ module.exports = (headers, data) => {
 
     console.table(headers['Authorization']);
 
-    const printData = package => {
+    const printData = pkg => {
         
         
     };

@@ -1,0 +1,34 @@
+<!-- examples/src/index.html -->
+<html>
+  <head>
+    <title>RicScreen</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <style>
+
+      td.cell {
+        width: fit-content;
+        font-family: sans-serif;
+      }
+    </style>
+
+    
+  <!-- SCRIPTS -->
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.4.4/d3.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.8.1/nv.d3.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react-with-addons.min.js"></script>
+  <!-- You should remove this for production and provide a compiled version of react components 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+  -->
+  <script type="text/jsx" src="/dist/react-nvd3.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  <script type="text/javascript" src="./widget-loader.js"></script>
+  <!-- STYLESHEETS -->
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.8.1/nv.d3.min.css">
+  </head>
+  <body>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <div id="root"></div>
+  </body>
+  <script type="text/javascript" src="https://api.stocktwits.com/assets/widget-7ecd11b393c8776b0bd4b453361959b91dc6d837e7b53ba828bf94271d640531.js"></script>
+</html>
