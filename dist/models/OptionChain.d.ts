@@ -1,11 +1,11 @@
 export interface OptionChain {
-    data: OptionData;
+    data: OptionWrapper;
     context: string;
 }
-export interface OptionData {
-    items: Item[];
+export interface OptionWrapper {
+    items: OptionData[];
 }
-export interface Item {
+export interface OptionData {
     "underlying-symbol": string;
     "root-symbol": string;
     "option-chain-type": string;
@@ -47,3 +47,20 @@ export interface TickSize {
     value: string;
     threshold?: string;
 }
+export declare const optionSymbolToObject: (symbol: string) => {
+    underlyingSymbol: any;
+    expirationDate: any;
+    daysToExpiration: any;
+    callOrPut: any;
+    strikePrice: any;
+    realTradingSymbol: any;
+    optionChainType: any;
+    miniFlag: any;
+    rawOptionChainType: any;
+    multiplier: any;
+    dateRaw: any;
+    strikePriceRaw: any;
+    rootSymbol: any;
+    expirationKey: any;
+    futureOptionRootSymbol: any;
+};

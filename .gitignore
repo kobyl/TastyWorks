@@ -46,3 +46,5 @@ storage.ide
 
 # ignore the dist folder.
 **/out/**
+dist/*
+*~

@@ -11,14 +11,14 @@ module.exports = {
         loader: ["babel-loader", "ts-loader"],
         exclude: [/node_modules/]
       },
-      {
-        test: /\.css$/,
-        use: ["style-loader", "css-loader"]
-      },
-      {
-        test: /\.(png|jpg|woff|woff2|gif|ttf|eot|svg)$/,
-        loader: "url-loader?prefix=./&limit=400000"
-      }
+      // {
+      //   test: /\.css$/,
+      //   use: ["style-loader", "css-loader"]
+      // },
+      // {
+      //   test: /\.(png|jpg|woff|woff2|gif|ttf|eot|svg)$/,
+      //   loader: "url-loader?prefix=./&limit=400000"
+      // }
     ]
   }
 };
