@@ -1,0 +1,26 @@
+f=findstr /sic:$*
+la=doskey /macros
+pu=pushd
+po=popd
+map=pushd %root%\mixameetapp
+mix=pushd %root%\mixameet
+np=pushd %root%\Zipminders\ZipSchedule\npm
+zs=pushd %root%\Zipminders\ZipSchedule
+zm=pushd %root%\Zipminders && call zipminders.sln
+..=cd ..
+r=pushd %root%
+ra=doskey /macrofile=%root%\usr\%username%\macros.personal
+ea=call gvim %root%\usr\%username%\macros.personal
+ba=call npm run build:android
+bd=call gulp build
+bz=call gulp build:zip
+s=start .
+sub=call "C:\Program Files\Sublime Text 3\sublime_text.exe" $*
+ln=pushd d:\ln
+ala=pushd d:\ln\alacrity
+web=call pushd %root%\mixameetapp\ & start gulp dev
+story=call pushd %root%\mixameetapp\ & start npm run storybook
+sdk=call pushd %root%\ext\android-sdk-windows\tools\lib
+push=call pushd %root%\mixameetapp\.cordova && adb $* install mixameet.apk && popd
+l=dir /p /a *$**
+

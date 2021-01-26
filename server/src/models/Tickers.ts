@@ -7,10 +7,10 @@ export class Trade {
     timeNanoPart: string;
     sequence: string;
     exchangeCode: string;
-    price: string;
+    price: number;
     change: string;
-    size: string;
-    dayVolume: string;
+    size: number;
+    dayVolume: number;
     dayTurnover: string;
     tickDirection: string;
     extendedTradingHours: string;
@@ -25,11 +25,11 @@ export class Quote {
     timeNanoPart: string;
     bidTime: string;
     bidExchangeCode: string;
-    bidPrice: string;
+    bidPrice: number;
     bidSize: string;
     askTime: string;
     askExchangeCode: string;
-    askPrice: string;
+    askPrice: number;
     askSize: string;
 }
 
@@ -39,16 +39,16 @@ export class Summary {
     eventSymbol: string;
     eventTime: string;
     dayId: string;
-    dayOpenPrice: string;
-    dayHighPrice: string;
-    dayLowPrice: string;
+    dayOpenPrice: number;
+    dayHighPrice: number;
+    dayLowPrice: number;
     dayClosePrice: string;
     dayClosePriceType: string;
     prevDayId: string;
-    prevDayClosePrice: string;
+    prevDayClosePrice: number;
     prevDayClosePriceType: string;
-    prevDayVolume: string;
-    openInterest: string;
+    prevDayVolume: number;
+    openInterest: number;
 }
 
 export class Profile {

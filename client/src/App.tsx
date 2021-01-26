@@ -1,22 +1,32 @@
 import React from 'react';
 import './App.css';
-import { Client } from './lib/Client';
 import { Header } from './components/Header';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { Body } from './components/Page';
+import { Status } from './components/Status';
+import { ClientContext } from './ClientContext';
+import { LoginResponse } from 'tasty';
 
-export const client = new Client();
-client.connect();
+interface State {
+  loginResponse?: LoginResponse;
+}
 
-const ConnectContext = React.createContext(client);
+class App extends React.Component<any, State> {
+  static contextType = ClientContext;
 
-class App extends React.Component {
+  state: State = {};
 
   render() {
     return (
-      <Header login={(username, password) => {
-        client.login(username, password);
-      }}
-      />);
+      <>
+        <Header login={async (username, password) => {
+          const response: LoginResponse = await this.context.login(username, password);
+          this.setState({ loginResponse: response });
+        }} />
+        <Status />
+        <Body loginResponse={this.state.loginResponse} />
+      </>
+    );
   }
 }
 

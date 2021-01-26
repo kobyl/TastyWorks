@@ -1,5 +1,5 @@
 'use strict';
-
+import { ResetTimer} from './ResetTimer';
 import { BasePackage, mapdata, MappedData } from "../models/BasePackage";
 const Comet = require("cometd");
 
@@ -48,14 +48,16 @@ function onServiceTimeSeriesData(message) {
 // https://api.tastyworks.com/quote-streamer-tokens
 
 export class Request {
-    trade?: string[];
-    quote?: string[];
-    summary?: string[];
-    profile?: string[];
+    trade?: string[] = [];
+    quote?: string[] = [];
+    summary?: string[] = [];
+    profile?: string[] = [];
+
+    dirty: boolean = false;
 
     static makeRequest = function (request: Request) {
         const output = {};
-        for (let key of ["trade", "quote", "summary", "profile"]) {
+        for (const key of ["trade", "quote", "summary", "profile"]) {
             if (request[key]) {
                 const upperKey = key.charAt(0).toUpperCase() + key.slice(1);
                 output[upperKey] = request[key];
@@ -63,19 +65,81 @@ export class Request {
         }
         return output;
     }
+
+    add = (sym: string) => {
+        for (const key of ["trade", "quote", "summary", "profile"]) {
+            this[key] = this[key] || [];
+            this[key].push(sym);
+        }
+    }
+
+    merge = (request: Request) => {
+        if (!request) return;
+
+        for (const s of ["trade", "quote", "summary", "profile"]) {
+            if (request[s] && request[s].length) {
+                const all = (this[s] || []).concat(request[s]);
+                const tmp = {};
+                for (const sym of all) {
+                    tmp[sym] = null;
+                }
+                this[s] = Object.keys(tmp);
+            }
+        }
+        this.dirty = true;
+    }
 }
+
+
 
 export class DxFeed {
     private cometd: any;
 
+    private resetTimer: ResetTimer;
+
     private dataListeners: { [key: string]: (data: any) => void } = {};
+
+    private symbolsToSubscribe = {};
+    private subscribedSymbols = {};
 
     addListener = (key: string, callback: (data: MappedData) => void) => {
         this.dataListeners[key] = callback;
     }
 
-    subscribe = (request: Request) => {
-        this.cometd.publish("/service/sub", { "reset": true, "add": Request.makeRequest(request) });
+    // It's your responsibility to make sure the request is < 264000
+    // That's the max size set by TW.
+    enqueue = (symbols: string[]) => {
+        for (const s of (symbols || [])) {
+            this.symbolsToSubscribe[s] = null;
+        }
+
+        this.resetTimer = this.resetTimer || new ResetTimer(this.publish);
+        this.resetTimer.start();
+    }
+
+    private publish = () => {
+        const syms = Object.keys(this.symbolsToSubscribe);
+        if (syms && syms.length) {
+            const nextRequest = new Request();
+            for (let i = 0; i < Math.min(syms.length, 50); i++) {
+                const sym = syms[i];
+                delete this.symbolsToSubscribe[sym];
+                if (!this.subscribedSymbols[sym]) {
+                    this.subscribedSymbols[sym] = true;
+                    nextRequest.add(sym);
+                }
+            }
+
+            try {
+                this.cometd.publish("/service/sub", { "reset": true, "add": Request.makeRequest(nextRequest) });
+                console.debug(`Subscribing to ${(nextRequest.trade && nextRequest.trade.length) || 0} symbols...`);
+            } catch (e) { }
+
+            if(Object.keys(this.symbolsToSubscribe).length) {
+                this.resetTimer.stop();
+                this.resetTimer.start();
+            }
+        }
     }
 
     connect = (token) => {

@@ -1,6 +1,6 @@
 import { OptionData, optionSymbolToObject, getDxSymbol, OptionSymbol } from "./models/OptionChain";
 import TastyWorks from './lib/TastyWorks';
-import { DxFeed } from "./lib/dxfeed";
+import { DxFeed, Request } from "./lib/dxfeed";
 import { MappedData } from "./models/BasePackage";
 import { WrappedMetrics, Metrics } from "./models/Metrics";
 import { StrictMode } from "react";
@@ -161,12 +161,7 @@ const testExport = async () => {
             }
         });
 
-        cometd.subscribe({
-            // profile: symbols,
-            quote: dxsymbols,
-            // summary: symbols,
-            trade: dxsymbols,
-        });
+        cometd.enqueue(dxsymbols);
 
 
 

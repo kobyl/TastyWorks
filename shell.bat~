@@ -14,8 +14,8 @@ rem set PATH=%ANDROID_HOME%\platform-tools;%PATH%
 
 pushd %root%
 
-echo Starting marcos 
-doskey /macrofile=%root%\%defMacro%
+echo Starting marcos in %root%usr\%user%\%usrMacro%
+doskey /macrofile=%root%usr\%user%\%usrMacro%
 
 if "%JAVA_HOME%"=="" (call :setHome)
 goto:eof
