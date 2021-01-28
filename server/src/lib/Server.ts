@@ -1,4 +1,4 @@
-import { BaseMessage, IncomingType, LoginResponse, LoginRequest, OutgoingTypes, TypedMessage, BaseResponse, ServerNotification, GetOptionsRequest, GetOptionsResponse, DxData, ClientQuote, FlashOrderRequest, ClientTrade } from "../clientlib/Messages";
+import { BaseMessage, IncomingType, LoginResponse, LoginRequest, OutgoingTypes, TypedMessage, BaseResponse, ServerNotification, GetOptionsRequest, GetOptionsResponse, DxData, ClientQuote, FlashOrderRequest, ClientTrade, LiveOrdersResponse, LiveOrdersRequest, } from "../clientlib/Messages";
 import { Assert } from "../clientlib/Assert";
 import { Streamer } from './streamer';
 import { TastyWorks } from './TastyWorks';
@@ -23,6 +23,7 @@ export class Server {
         this.handlers[IncomingType.Login] = this.handleLogin;
         this.handlers[IncomingType.GetOptions] = this.getOptions;
         this.handlers[IncomingType.FlashOrder] = this.flashOrder;
+        this.handlers[IncomingType.LiveOrders] = this.liveOrders;
     }
 
     listen = (port: number) => {
@@ -56,9 +57,11 @@ export class Server {
             const req = msg as FlashOrderRequest;
             const symbol = req.symbol;
             const account = req.account;
+            const action = req.action;
+
             let q = this.liveQuotes[symbol];
             const optionChain = this.optionChains[q.underlying];
-    
+
             if (!q || !q.bidPrice || !q.askPrice || !q.officialSymbol) {
                 debugger;
                 return;
@@ -67,17 +70,21 @@ export class Server {
                 debugger;
                 return;
             }
-    
+
             // TODO: Properly calc size based on threshold.
-            let tickSize = optionChain["tick-sizes"].reduce((p, c) => Math.max(p + 0, Number(c.value)), 0);
-    
-            let targetBid: any = q.bidPrice + tickSize;
+            // For now - if the option is > $3 we use 0.05. Otherwise 0.01. I haven't figured out how they determine tick sizes.
+            let tickSize = q.bidPrice < 3 ? 0.01 : 0.05;
+
+            let targetBid: any = action === ActionType.BTO
+               ? q.bidPrice + tickSize
+               : q.askPrice - tickSize;
+
             targetBid = targetBid.toFixed(2);
-    
+
             let delay = 200;
-    
+
             console.log(`Flash order ${account}, ${q.officialSymbol}, ${targetBid}`);
-            let orderResponse = await this.tw.executeOrder(account, q.officialSymbol, targetBid, 1, ActionType.BTO);
+            let orderResponse = await this.tw.executeOrder(account, q.officialSymbol, targetBid, 1, action);
             const oid = orderResponse.order.id + '';
             console.log("New order: " + orderResponse.order.id);
 
@@ -100,11 +107,13 @@ export class Server {
         }
     }
 
+
     getOptions = async (msg: TypedMessage) => {
         Assert(msg.type === IncomingType.GetOptions, "Wrong Type");
 
         const request = msg as GetOptionsRequest;
         const underlyings = (request.underlyings || []).map(s => (s || '').toUpperCase().trim()).filter(s => s);
+
         const tasks = underlyings.map(s => this.tw.optionChain(s));
 
         await Promise.all(tasks.map(async t => {
@@ -144,7 +153,7 @@ export class Server {
 
         this.send(chainResponse);
 
-        const syms:string[] = [...underlyings];
+        const syms: string[] = [...underlyings];
 
         for (const sym of Object.keys(chainResponse.chains)) {
             const chain = chainResponse.chains[sym];
@@ -157,6 +166,22 @@ export class Server {
         }
 
         this.dxfeed.enqueue(syms);
+    }
+
+    liveOrders = async (msg: TypedMessage) => {
+        Assert(msg.type === IncomingType.LiveOrders, "Wrong Type");
+        const request: LiveOrdersRequest = msg as LiveOrdersRequest;
+        const accounts: string[] = request.accounts;
+        
+        let liveOrderTasks = accounts.map(account => this.tw.liveOrders(account));
+        const orders = await Promise.all(liveOrderTasks);
+
+        const response : LiveOrdersResponse = {
+            type: IncomingType.LiveOrders,
+            orders,
+            requestId: msg.requestId
+        }
+        this.send(response);
     }
 
     handleLogin = async (msg: TypedMessage) => {
@@ -193,6 +218,7 @@ export class Server {
                 this.orderStatuses[data.id + ''] = data.status;
             });
 
+
             response.accounts = await this.tw.accounts();
 
             const streamerToken = await this.tw.getStreamerToken();
@@ -211,10 +237,12 @@ export class Server {
     orderStatuses = {};
 
     handleDxData = (data: MappedData) => {
+        const quotes: { [symbol: string]: Partial<ClientQuote> } = {};
+        const trades: { [symbol: string]: Partial<ClientTrade> } = {};
         const dxData: DxData = {
             type: OutgoingTypes.Quote,
-            quotes: this.liveQuotes,
-            trades: this.liveTrades,
+            quotes: quotes,
+            trades: trades,
         };
 
         // console.log(data.type);
@@ -224,16 +252,19 @@ export class Server {
             return;
         }
 
+
         if (data.type === "Quote") {
             for (var mapped of data.mappedData) {
                 const quote: Quote = mapped;
                 const { eventSymbol, bidPrice, askPrice, bidTime, askTime } = quote;
 
                 this.liveQuotes[eventSymbol] = this.liveQuotes[eventSymbol] || {};
-                this.liveQuotes[eventSymbol].bidPrice = bidPrice;
-                this.liveQuotes[eventSymbol].askPrice = askPrice;
-                this.liveQuotes[eventSymbol].bidTime = bidTime;
-                this.liveQuotes[eventSymbol].askTime = askTime;
+
+                quotes[eventSymbol] = this.liveQuotes[eventSymbol];
+                quotes[eventSymbol].bidPrice = bidPrice;
+                quotes[eventSymbol].askPrice = askPrice;
+                quotes[eventSymbol].bidTime = bidTime;
+                quotes[eventSymbol].askTime = askTime;
             }
         }
         if (data.type === "Summary") {
@@ -243,9 +274,11 @@ export class Server {
                 const { eventSymbol, prevDayVolume, dayHighPrice, dayLowPrice } = summary;
 
                 this.liveQuotes[eventSymbol] = this.liveQuotes[eventSymbol] || {};
-                this.liveQuotes[eventSymbol].dayHighPrice = dayHighPrice;
-                this.liveQuotes[eventSymbol].dayLowPrice = dayLowPrice;
-                this.liveQuotes[eventSymbol].prevDayVolume = prevDayVolume;
+
+                quotes[eventSymbol] = this.liveQuotes[eventSymbol];
+                quotes[eventSymbol].dayHighPrice = dayHighPrice;
+                quotes[eventSymbol].dayLowPrice = dayLowPrice;
+                quotes[eventSymbol].prevDayVolume = prevDayVolume;
             }
         }
         if (data.type === "Trade") {
@@ -255,12 +288,14 @@ export class Server {
                 const { eventSymbol, dayVolume, price, time, tickDirection } = trade;
 
                 this.liveTrades[eventSymbol] = this.liveTrades[eventSymbol] || {};
-                this.liveTrades[eventSymbol].dayVolume = dayVolume;
-                this.liveTrades[eventSymbol].tradePrice = price;
-                this.liveTrades[eventSymbol].tradeTime = time;
-                this.liveTrades[eventSymbol].tickDirection = tickDirection;
+                trades[eventSymbol] = this.liveTrades[eventSymbol];
+                trades[eventSymbol].dayVolume = dayVolume;
+                trades[eventSymbol].tradePrice = price;
+                trades[eventSymbol].tradeTime = time;
+                trades[eventSymbol].tickDirection = tickDirection;
             }
         }
+
         this.send(dxData);
     }
 }

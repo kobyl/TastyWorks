@@ -8,7 +8,11 @@ interface State {
     loggedInToTw: boolean;
 }
 
-export class Status extends React.Component<any, State> {
+interface Props {
+    freeze: (check:boolean) => void;
+}
+
+export class Status extends React.Component<Props, State> {
     static contextType = ClientContext;
     state: State = {
         isConnected: false,
@@ -37,9 +41,15 @@ export class Status extends React.Component<any, State> {
         const loggedInMsg = this.state.loggedInToTw ? "TW" : "TW";
 
         return <Navbar bg="light">
-            <Badge variant={connectedColor}>{connectedMsg}</Badge>&nbsp;
-            <Badge variant={loggedInColor}> {loggedInMsg}</Badge>
-            <Navbar.Toggle aria-controls="basic-navbar-nav" />
+            <Form inline>
+                <Badge variant={connectedColor}>{connectedMsg}</Badge>&nbsp;
+            <Badge variant={loggedInColor}> {loggedInMsg}</Badge>&nbsp;
+                <Form.Group controlId="formBasicCheckbox">
+                    <Form.Check type="checkbox" label="Freeze" onClick={e=> {
+                        return this.props.freeze((e.target as any).checked);
+                    }}/>
+                </Form.Group>
+            </Form>
         </Navbar>
     }
 }

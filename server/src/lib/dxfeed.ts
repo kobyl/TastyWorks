@@ -1,5 +1,5 @@
 'use strict';
-import { ResetTimer} from './ResetTimer';
+import { ResetTimer } from './ResetTimer';
 import { BasePackage, mapdata, MappedData } from "../models/BasePackage";
 const Comet = require("cometd");
 
@@ -100,7 +100,7 @@ export class DxFeed {
     private dataListeners: { [key: string]: (data: any) => void } = {};
 
     private symbolsToSubscribe = {};
-    private subscribedSymbols = {};
+
 
     addListener = (key: string, callback: (data: MappedData) => void) => {
         this.dataListeners[key] = callback;
@@ -117,26 +117,24 @@ export class DxFeed {
         this.resetTimer.start();
     }
 
-    private publish = () => {
+    private publish = (first:boolean = false) => {
         const syms = Object.keys(this.symbolsToSubscribe);
         if (syms && syms.length) {
             const nextRequest = new Request();
             for (let i = 0; i < Math.min(syms.length, 50); i++) {
                 const sym = syms[i];
                 delete this.symbolsToSubscribe[sym];
-                if (!this.subscribedSymbols[sym]) {
-                    this.subscribedSymbols[sym] = true;
-                    nextRequest.add(sym);
-                }
+
+                nextRequest.add(sym);
             }
 
             try {
-                this.cometd.publish("/service/sub", { "reset": true, "add": Request.makeRequest(nextRequest) });
+                this.cometd.publish("/service/sub", { "add": Request.makeRequest(nextRequest) });
                 console.debug(`Subscribing to ${(nextRequest.trade && nextRequest.trade.length) || 0} symbols...`);
             } catch (e) { }
 
-            if(Object.keys(this.symbolsToSubscribe).length) {
-                this.resetTimer.stop();
+            this.resetTimer.stop();
+            if (Object.keys(this.symbolsToSubscribe).length) {
                 this.resetTimer.start();
             }
         }

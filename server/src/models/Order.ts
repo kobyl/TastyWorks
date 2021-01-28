@@ -3,11 +3,11 @@
 
 export interface OrderStream {
     type:      string;
-    data:      Data;
+    data:      Order;
     timestamp: number;
 }
 
-export interface Data {
+export interface Order {
     id:                           number;
     "account-number":             string;
     "time-in-force":              string;

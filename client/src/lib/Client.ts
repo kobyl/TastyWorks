@@ -1,6 +1,6 @@
 import { resolve } from 'dns';
 import { Assert, LoginRequest, TypedMessage, GetOptionsRequest, GetOptionsResponse, OutgoingTypes, FlashOrderRequest, FlashOrderResponse, DxData } from 'tasty';
-import { IncomingType, BaseResponse, LoginResponse, ClientQuotes } from 'tasty';
+import { ActionType, LiveOrdersRequest, LiveOrdersResponse, Order, IncomingType, BaseResponse, LoginResponse, ClientQuotes } from 'tasty';
 
 export enum ClientEvents {
     connectedToServer,
@@ -62,6 +62,9 @@ export class Client {
         this.isOpen = false;
         this.socket.onmessage = null;
         this.fire(ClientEvents.disconnectedFromServer, null);
+        setTimeout(() => {
+            this.connect();
+        }, 1000);
     }
 
     private onMessage = (msg: MessageEvent) => {
@@ -110,12 +113,27 @@ export class Client {
         this.socket.send(JSON.stringify(request));
     }
 
-    flash = (symbol:string, account:string): Promise<any> => {
+    getLiveOrders = (accounts:string[]): Promise<LiveOrdersResponse> => new Promise(
+        (res, rej) => {
+            let req: Partial<LiveOrdersRequest> = {
+                type: IncomingType.LiveOrders,
+                accounts
+            };
+
+            this.send(req, (result: LiveOrdersResponse) => {
+                res(result);
+            });
+        }
+    );
+
+    // TODO: Wire up response properly
+    flash = (symbol:string, account:string, action: ActionType): Promise<any> => {
         return new Promise<any>((res:any, rej:any) => {
             const request: Partial<FlashOrderRequest> = {
                 type: IncomingType.FlashOrder,
                 symbol,
-                account
+                account,
+                action
             };
 
             this.send(request, (result: FlashOrderResponse) => {

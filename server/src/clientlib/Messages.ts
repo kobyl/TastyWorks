@@ -1,11 +1,14 @@
 import { OutgoingMessage } from 'http';
+import { ActionType } from '../lib/executeOrder';
 import { Account } from '../models/Account';
 import { OptionChain, OptionData } from '../models/OptionChain';
+import { Order } from '../models/Order';
 
 export enum IncomingType {
     Login = "dologin",
     GetOptions = 'getOptionChains',
     FlashOrder = 'flashOrder',
+    LiveOrders = "liveOrders",
 }
 
 export enum OutgoingTypes {
@@ -35,6 +38,7 @@ export interface DxData {
 export interface FlashOrderRequest extends TypedMessage {
     symbol: string;
     account: string;
+    action: ActionType;
 }
 
 export interface FlashOrderResponse extends TypedMessage {
@@ -45,6 +49,14 @@ export interface FlashOrderResponse extends TypedMessage {
 export interface LoginRequest extends TypedMessage {
     username: string;
     password: string;
+}
+
+export interface LiveOrdersRequest extends TypedMessage {
+    accounts: string[];
+}
+
+export interface LiveOrdersResponse extends TypedMessage {
+    orders: Order[];
 }
 
 export interface BaseResponse {
