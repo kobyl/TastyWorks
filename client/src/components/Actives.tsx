@@ -18,6 +18,7 @@ export interface ActivesFilter {
 export interface Prop {
     filter?: ActivesFilter;
     freeze?: boolean;
+    rowClicked: (sym: string) => void;
 }
 
 var renders = 0;
@@ -142,7 +143,16 @@ export class Actives extends React.Component<Prop, State> {
             }
         }
 
+        let limit = filter?.lastTradeSeconds || filter?.minVol || filter?.spread || filter?.symbol
+            ? displays.size
+            : 100;
+
+        let entries = 0;
         for (const [sym, oldTrade] of displays) {
+            if (++entries > limit) {
+                break;
+            }
+
             const quote = quotes.get(sym)!;
             const trade = latestTrades.get(sym)!;
 
@@ -165,27 +175,29 @@ export class Actives extends React.Component<Prop, State> {
                     newVol = trade.dayVolume;
                 }
 
-                const row = (<tr key={sym}>
-                    <td>{sym}</td>
-                    <td>{secondsAgo}</td>
-                    <td>{newVol}</td>
-                    <td>{trade.tradePrice}</td>
-                    <td>{quote.bidPrice}</td>
-                    <td>{quote.askPrice}</td>
-                    <td>{spread}</td>
-                    <td>{spreadLastTrade}</td>
-                </tr>);
+                const row = (
+                    <tr key={sym} onClick={() => this.props.rowClicked(sym)}>
+                        <td>{sym}</td>
+                        <td>{secondsAgo}</td>
+                        <td>{newVol}</td>
+                        <td>{trade.tradePrice}</td>
+                        <td>{quote.bidPrice}</td>
+                        <td>{quote.askPrice}</td>
+                        <td>{spread}</td>
+                        <td>{spreadLastTrade}</td>
+                    </tr>);
                 rows.push(row);
                 displays.set(sym, trade);
             } else {
                 displays.delete(sym);
             }
+
         }
 
         const duration = performance.now() - start;
         // console.log(`Building table took ${duration} milliseconds`);
 
-        return (<Table>
+        return (<Table striped bordered hover>
             <thead><tr>
                 <th>Symbol:</th>
                 <th>Seconds Ago:</th>
@@ -220,7 +232,7 @@ export class Actives extends React.Component<Prop, State> {
         if ((trade.dayVolume || 0) >= minVol) {
             if ((Number(trade.tradeTime) || 0) >= lastTradeTime) {
                 if (Number(spread) >= minSpread) {
-                    if (!filter || !filter.symbol || sym.includes(filter.symbol)) {
+                    if (!filter?.symbol || sym.toUpperCase().includes(filter?.symbol?.toUpperCase())) {
                         return true;
                     }
                 }

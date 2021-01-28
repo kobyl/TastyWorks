@@ -22,6 +22,7 @@ export class Body extends React.Component<Props, State> {
     private symbols: string = '';
     private orderSym: string = '';
     private account: string = '';
+    private orderRef: any = React.createRef();
 
     constructor(props: any) {
         super(props);
@@ -42,6 +43,8 @@ export class Body extends React.Component<Props, State> {
             }
             return <option>No Accounts found</option>;
         };
+
+        const that: any = this;
 
         return <Container fluid>
             <Row>
@@ -91,16 +94,10 @@ export class Body extends React.Component<Props, State> {
                         </Form>
                         <Form inline>
                             <Form.Group>
-                                <FormControl placeholder="Order" onBlur={(e: any) => {
-                                    const filter: ActivesFilter = this.state.activesFilter || {};
-                                    filter.symbol = e.target.value;
-                                    this.setState({
-                                        activesFilter: {
-                                            ...filter
-                                        }
-                                    });
-
-                                    this.orderSym = e.target.value;
+                                <FormControl placeholder="Order" ref={(r: any) => {
+                                    this.orderRef = r;
+                                }} onChange={(e: any) => {
+                                    this.handleBlur(e.target.value);
                                 }} />
                                 <Form.Control as="select" onChange={e => { this.account = e.target.value }}>
                                     {getSelections()}
@@ -112,8 +109,23 @@ export class Body extends React.Component<Props, State> {
                     </Navbar>
                 </Col>
             </Row>
-            <Row> <Col><Actives freeze={this.props.freeze} filter={this.state.activesFilter} /></Col></Row>
+            <Row> <Col><Actives freeze={this.props.freeze} filter={this.state.activesFilter} rowClicked={(sym) => {
+                that.orderRef.value = sym;
+                that.handleBlur(sym);
+            }} /></Col></Row>
         </Container>
+    }
+
+    handleBlur = (sym: string) => {
+        const filter: ActivesFilter = this.state.activesFilter || {};
+        filter.symbol = sym;
+        this.setState({
+            activesFilter: {
+                ...filter
+            }
+        });
+
+        this.orderSym = sym;
     }
 
     subscribe = async (symbols: string) => {
