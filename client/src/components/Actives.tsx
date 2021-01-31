@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
-import { Form, Container, Row, Col, Navbar, FormControl, Button, Table } from "react-bootstrap";
-import { ResetTimer, ClientQuote, ClientQuotes, ClientTrade } from "tasty";
+import { Container, Row, Col, Table } from "react-bootstrap";
+import { OrderStatusNotification, ClientQuote, ClientTrade, ResetTimer } from "tasty";
 import { ClientContext } from "../ClientContext";
 import { Client, ClientEvents } from "../lib/Client";
 
@@ -21,7 +21,6 @@ export interface Prop {
     rowClicked: (sym: string) => void;
 }
 
-var renders = 0;
 export class Actives extends React.Component<Prop, State> {
     static contextType = ClientContext;
     constructor(props: any) {
@@ -97,8 +96,6 @@ export class Actives extends React.Component<Prop, State> {
     }
 
     render() {
-        console.debug(`Renders: ${++renders}`);
-
         return <Container fluid>
             <Row>
                 <Col>
@@ -168,9 +165,10 @@ export class Actives extends React.Component<Prop, State> {
             if (display) {
                 let newVol: any = trade.dayVolume;
                 const existingVol = oldTrade.dayVolume;
+                const diff = newVol - existingVol;
 
                 if (existingVol !== newVol) {
-                    newVol = <b>{`${existingVol} -> ${trade.dayVolume}`}</b>;
+                    newVol = <b>{`${trade.dayVolume} (+${diff})`}</b>;
                 } else {
                     newVol = trade.dayVolume;
                 }
@@ -214,11 +212,21 @@ export class Actives extends React.Component<Prop, State> {
         </Table>);
     }
 
+    color = (final: number, diff: number) => {
+        if (diff < 0) {
+            return <div style={{ color: 'red' }}>{"+" + final}</div >;
+        } else if (diff > 0) {
+            return <div style={{ color: 'green' }}>{'-' + final}</div >;
+        } else {
+            return final;
+        }
+    }
+
     shouldDisplay = (trade: ClientTrade, sym: string, spread: string) => {
         let minVol = 0;
         let lastTradeSeconds = 0;
         let minSpread = 0;
-        const now = new Date().getDate();
+        const now = new Date().getTime();
 
         const filter = this.props.filter;
         if (filter) {
@@ -227,7 +235,7 @@ export class Actives extends React.Component<Prop, State> {
             minSpread = filter.spread || 0;
         }
 
-        const lastTradeTime = lastTradeSeconds !== 0 ? now - (lastTradeSeconds) : 0;
+        const lastTradeTime = lastTradeSeconds !== 0 ? now - (lastTradeSeconds * 1000) : 0;
 
         if ((trade.dayVolume || 0) >= minVol) {
             if ((Number(trade.tradeTime) || 0) >= lastTradeTime) {

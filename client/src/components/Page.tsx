@@ -1,10 +1,10 @@
 import React from "react";
 import { Form, Container, Row, Col, Navbar, FormControl, Button } from "react-bootstrap";
-import { LoginResponse } from "tasty/node/clientlib/Messages";
+import { FlashOrderResponse, LoginResponse } from "tasty/node/clientlib/Messages";
 import { ClientContext } from "../ClientContext";
 import { Client } from "../lib/Client";
 import { Quotes } from './Quotes';
-import { Account, ActionType } from 'tasty';
+import { Account, ActionType, OrderStatus } from 'tasty';
 import { Actives, ActivesFilter } from "./Actives";
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
 interface State {
     activesFilter?: ActivesFilter;
     orders?: any;
+    orderFired?: boolean;
 }
 
 export class Body extends React.Component<Props, State> {
@@ -102,8 +103,8 @@ export class Body extends React.Component<Props, State> {
                                 <Form.Control as="select" onChange={e => { this.account = e.target.value }}>
                                     {getSelections()}
                                 </Form.Control>
-                                &nbsp;<Button variant='primary' onClick={() => this.flash(this.orderSym, this.account, ActionType.BTO)}>Buy</Button>
-                                &nbsp;<Button variant='primary' onClick={() => this.flash(this.orderSym, this.account, ActionType.STC)}>Sell</Button>
+                                &nbsp;<Button variant='primary' disabled={this.state.orderFired} onClick={() => this.flash(this.orderSym, this.account, ActionType.BTO)}>Buy</Button>
+                                &nbsp;<Button variant='primary' disabled={this.state.orderFired} onClick={() => this.flash(this.orderSym, this.account, ActionType.STC)}>Sell</Button>
                             </Form.Group>
                         </Form>
                     </Navbar>
@@ -134,18 +135,20 @@ export class Body extends React.Component<Props, State> {
     }
 
     flash = async (symbol: string, account: string, action: ActionType) => {
+        this.setState({ orderFired: true });
         const client: Client = this.context;
-        const response = client.flash(symbol, account, action);
+        const response: FlashOrderResponse = await client.flash(symbol, account, action);
 
-        if (this.props.loginResponse?.accounts) {
-            const orders = await client.getLiveOrders(this.props.loginResponse?.accounts.map(a => a["account-number"]));
-            this.setState({ orders: orders.orders });
-
+        try {
+            if (this.props.loginResponse?.accounts) {
+                const orders = await client.getLiveOrders(this.props.loginResponse?.accounts.map(a => a["account-number"]));
+                this.setState({ orders: orders.orders });
+            }
+        } finally {
+            this.setState({ orderFired: false });
+            console.log(response);
         }
-        console.log(response);
     }
-
-
 }
 
 Body.contextType = ClientContext;

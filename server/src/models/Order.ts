@@ -7,6 +7,13 @@ export interface OrderStream {
     timestamp: number;
 }
 
+export enum OrderStatus {
+    cancelled = "Cancelled",
+    filled = "Filled",
+    received = "Received",
+    unknown = "Unknown",
+}
+
 export interface Order {
     id:                           number;
     "account-number":             string;
@@ -17,7 +24,7 @@ export interface Order {
     "underlying-instrument-type": string;
     price:                        string;
     "price-effect":               string;
-    status:                       string;
+    status:                       OrderStatus;
     cancellable:                  boolean;
     "cancelled-at":               string;
     editable:                     boolean;
@@ -88,7 +95,7 @@ export interface Order {
     "underlying-instrument-type": string;
     price: string;
     "price-effect": string;
-    status: string;
+    status: OrderStatus;
     cancellable: boolean;
     editable: boolean;
     edited: boolean;

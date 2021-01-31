@@ -1,12 +1,12 @@
-import { BaseMessage, IncomingType, LoginResponse, LoginRequest, OutgoingTypes, TypedMessage, BaseResponse, ServerNotification, GetOptionsRequest, GetOptionsResponse, DxData, ClientQuote, FlashOrderRequest, ClientTrade, LiveOrdersResponse, LiveOrdersRequest, } from "../clientlib/Messages";
+import { BaseMessage, MessageType, LoginResponse, LoginRequest, TypedMessage, BaseResponse, ServerNotification, GetOptionsRequest, GetOptionsResponse, DxData, ClientQuote, FlashOrderRequest, ClientTrade, LiveOrdersResponse, LiveOrdersRequest, TypedNotification, FlashOrderResponse, } from "../clientlib/Messages";
 import { Assert } from "../clientlib/Assert";
 import { Streamer } from './streamer';
 import { TastyWorks } from './TastyWorks';
-import DxFeed, { Request } from "./dxfeed";
+import DxFeed from "./dxfeed";
 import { optionSymbolToObject, getDxSymbol, OptionData } from "../models/OptionChain";
 import { MappedData } from "../models/BasePackage";
 import { Quote, Summary, Trade } from "../models/Tickers";
-import { OrderStream } from "../models/Order";
+import { OrderStatus, OrderStream } from "../models/Order";
 import { ActionType } from "./executeOrder";
 
 const WebSocket = require('ws');
@@ -20,10 +20,10 @@ export class Server {
     private dxfeed = new DxFeed();
 
     constructor() {
-        this.handlers[IncomingType.Login] = this.handleLogin;
-        this.handlers[IncomingType.GetOptions] = this.getOptions;
-        this.handlers[IncomingType.FlashOrder] = this.flashOrder;
-        this.handlers[IncomingType.LiveOrders] = this.liveOrders;
+        this.handlers[MessageType.Login] = this.handleLogin;
+        this.handlers[MessageType.GetOptions] = this.getOptions;
+        this.handlers[MessageType.FlashOrder] = this.flashOrder;
+        this.handlers[MessageType.LiveOrders] = this.liveOrders;
     }
 
     listen = (port: number) => {
@@ -53,7 +53,7 @@ export class Server {
 
     flashOrder = async (msg: TypedMessage) => {
         try {
-            Assert(msg.type === IncomingType.FlashOrder, "Wrong Type");
+            Assert(msg.type === MessageType.FlashOrder, "Wrong Type");
             const req = msg as FlashOrderRequest;
             const symbol = req.symbol;
             const account = req.account;
@@ -64,11 +64,10 @@ export class Server {
 
             if (!q || !q.bidPrice || !q.askPrice || !q.officialSymbol) {
                 debugger;
-                return;
+                throw "No bidprice or askprice";
             }
             if (!optionChain) {
-                debugger;
-                return;
+                throw "Could not find option chain.";
             }
 
             // TODO: Properly calc size based on threshold.
@@ -76,12 +75,11 @@ export class Server {
             let tickSize = q.bidPrice < 3 ? 0.01 : 0.05;
 
             let targetBid: any = action === ActionType.BTO
-               ? q.bidPrice + tickSize
-               : q.askPrice - tickSize;
+                ? q.bidPrice + tickSize
+                : q.bidPrice + (q.askPrice - q.bidPrice) / 2;
+            //    : q.askPrice - tickSize;
 
             targetBid = targetBid.toFixed(2);
-
-            let delay = 200;
 
             console.log(`Flash order ${account}, ${q.officialSymbol}, ${targetBid}`);
             let orderResponse = await this.tw.executeOrder(account, q.officialSymbol, targetBid, 1, action);
@@ -89,27 +87,75 @@ export class Server {
             console.log("New order: " + orderResponse.order.id);
 
             if (!oid) return;
-
-            setTimeout(async () => {
-                const status = this.orderStatuses[oid];
-                if (!status || status.toUpperCase() != "FILLED") {
-                    const deleteResponse = await this.tw.cancelOrder(account, orderResponse.order.id);
-                    console.log("Delete Response");
-                    console.table(deleteResponse);
-                } else {
-                    // bought = true;
-                    // sell(account, symbols[0], targetBid);
-                }
-            }, delay);
+            this.cancelOrder(account, oid, msg.requestId);
         } catch (e) {
             console.error(e);
-            debugger;
+            const resp: FlashOrderResponse = {
+                requestId: msg.requestId,
+                orderId: "NA",
+                status: OrderStatus.unknown,
+                type: MessageType.OrderNotifcation,
+                errors: e
+            }
+            this.send(resp);
         }
     }
 
+    cancelOrder = async (account: string, oid: string, requestId: string) => {
+        const status = this.orderStatuses[oid];
+        if (!status) {
+            setTimeout(() => { this.cancelOrder(account, oid, requestId) }, 5);
+            return;
+        }
+
+        if (!status || status.toUpperCase() != "FILLED") {
+            try {
+                const deleteResponse = await this.tw.cancelOrder(account, oid);
+                console.log("Delete Response");
+                console.table(deleteResponse);
+                if (deleteResponse.status !== OrderStatus.cancelled) {
+                    console.log("Could not cancel order");
+                    throw deleteResponse;
+                } else {
+                    const msg: TypedNotification = {
+                        requestId: requestId,
+                        type: MessageType.OrderNotifcation,
+                        data: {
+                            orderId: oid,
+                            status: OrderStatus.cancelled,
+                        }
+                    }
+                    this.send(msg);
+                }
+            } catch (e) {
+                console.log(e);
+                const msg: TypedNotification = {
+                    requestId: requestId,
+                    type: MessageType.OrderNotifcation,
+                    errors: e,
+                    data: {
+                        orderId: oid,
+                        status: OrderStatus.unknown
+                    }
+                }
+                this.send(msg);
+            }
+        } else {
+            const msg: TypedNotification = {
+                requestId: requestId,
+                type: MessageType.OrderNotifcation,
+                data: {
+                    orderId: oid,
+                    status: OrderStatus.filled
+                }
+            }
+            this.send(msg);
+
+        }
+    }
 
     getOptions = async (msg: TypedMessage) => {
-        Assert(msg.type === IncomingType.GetOptions, "Wrong Type");
+        Assert(msg.type === MessageType.GetOptions, "Wrong Type");
 
         const request = msg as GetOptionsRequest;
         const underlyings = (request.underlyings || []).map(s => (s || '').toUpperCase().trim()).filter(s => s);
@@ -169,15 +215,15 @@ export class Server {
     }
 
     liveOrders = async (msg: TypedMessage) => {
-        Assert(msg.type === IncomingType.LiveOrders, "Wrong Type");
+        Assert(msg.type === MessageType.LiveOrders, "Wrong Type");
         const request: LiveOrdersRequest = msg as LiveOrdersRequest;
         const accounts: string[] = request.accounts;
-        
+
         let liveOrderTasks = accounts.map(account => this.tw.liveOrders(account));
         const orders = await Promise.all(liveOrderTasks);
 
-        const response : LiveOrdersResponse = {
-            type: IncomingType.LiveOrders,
+        const response: LiveOrdersResponse = {
+            type: MessageType.LiveOrders,
             orders,
             requestId: msg.requestId
         }
@@ -185,7 +231,7 @@ export class Server {
     }
 
     handleLogin = async (msg: TypedMessage) => {
-        Assert(msg.type === IncomingType.Login, "Wrong Type");
+        Assert(msg.type === MessageType.Login, "Wrong Type");
 
         const loginRequest = msg as LoginRequest;
         const response: LoginResponse = {
@@ -217,9 +263,15 @@ export class Server {
 
                 this.orderStatuses[data.id + ''] = data.status;
             });
+            this.streamer.connect();
 
 
             response.accounts = await this.tw.accounts();
+
+            this.streamer.sendJson({
+                action: "account-subscribe",
+                value: response.accounts.map(a => a["account-number"])
+            });
 
             const streamerToken = await this.tw.getStreamerToken();
             this.dxfeed.connect(streamerToken);
@@ -240,7 +292,7 @@ export class Server {
         const quotes: { [symbol: string]: Partial<ClientQuote> } = {};
         const trades: { [symbol: string]: Partial<ClientTrade> } = {};
         const dxData: DxData = {
-            type: OutgoingTypes.Quote,
+            type: MessageType.Quote,
             quotes: quotes,
             trades: trades,
         };

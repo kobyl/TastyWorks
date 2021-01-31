@@ -1,20 +1,16 @@
 import { OutgoingMessage } from 'http';
 import { ActionType } from '../lib/executeOrder';
 import { Account } from '../models/Account';
-import { OptionChain, OptionData } from '../models/OptionChain';
-import { Order } from '../models/Order';
+import { OptionData } from '../models/OptionChain';
+import { Order, OrderStatus } from '../models/Order';
 
-export enum IncomingType {
+export enum MessageType {
     Login = "dologin",
     GetOptions = 'getOptionChains',
     FlashOrder = 'flashOrder',
     LiveOrders = "liveOrders",
-}
-
-export enum OutgoingTypes {
-    Login = "dologin",
-    GetOptions = 'getOptionChains',
     Quote = "quote",
+    OrderNotifcation = "orderNotifciaton",
 }
 
 export interface BaseMessage {
@@ -22,7 +18,17 @@ export interface BaseMessage {
 }
 
 export interface TypedMessage extends BaseMessage {
-    type: IncomingType;
+    type: MessageType;
+    errors?: any;
+}
+
+export interface TypedNotification extends TypedMessage{
+    data: any;
+}
+
+export interface OrderStatusNotification {
+    orderId: string,
+    status: OrderStatus,
 }
 
 export interface ServerNotification {
@@ -30,7 +36,7 @@ export interface ServerNotification {
 }
 
 export interface DxData {
-    type: OutgoingTypes;
+    type: MessageType;
     quotes: { [symbol: string]: Partial<ClientQuote> };
     trades: { [symbol: string]: Partial<ClientTrade> };
 }
@@ -98,7 +104,7 @@ export interface ClientQuotes {
 export class ClientQuote {
     officialSymbol: string;
     eventSymbol: string;
-    underlying:string;
+    underlying: string;
     bidPrice: number;
     askPrice: number;
     bidTime: string;
@@ -110,7 +116,7 @@ export class ClientQuote {
 }
 
 export class ClientTrade {
-    underlying:string;
+    underlying: string;
     eventSymbol: string;
     dayVolume: number;
     tradePrice: number;

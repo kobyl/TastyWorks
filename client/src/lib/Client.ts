@@ -1,6 +1,6 @@
 import { resolve } from 'dns';
-import { Assert, LoginRequest, TypedMessage, GetOptionsRequest, GetOptionsResponse, OutgoingTypes, FlashOrderRequest, FlashOrderResponse, DxData } from 'tasty';
-import { ActionType, LiveOrdersRequest, LiveOrdersResponse, Order, IncomingType, BaseResponse, LoginResponse, ClientQuotes } from 'tasty';
+import { Assert, LoginRequest, TypedMessage, GetOptionsRequest, GetOptionsResponse, FlashOrderRequest, FlashOrderResponse, DxData, OrderStatusNotification, TypedNotification } from 'tasty';
+import { ActionType, LiveOrdersRequest, LiveOrdersResponse, MessageType, BaseResponse, LoginResponse, } from 'tasty';
 
 export enum ClientEvents {
     connectedToServer,
@@ -8,6 +8,7 @@ export enum ClientEvents {
     loggedIn,
     onQuote,
     onTrade,
+    onOrderUpdate,
 };
 
 export class Client {
@@ -80,7 +81,7 @@ export class Client {
             if (this.outstandings[rid]) {
                 this.outstandings[rid](data);
                 delete this.outstandings[rid];
-            }else if(data.type === OutgoingTypes.Quote) {
+            }else if(data.type === MessageType.Quote) {
                 const quotes = (data as DxData).quotes;
                 for(const l of this.listeners[ClientEvents.onQuote] || []) {
                     l(quotes); 
@@ -90,6 +91,11 @@ export class Client {
                     l(trades); 
                 }
                 // debugger;
+            }else if (data.type === MessageType.OrderNotifcation) {
+                const notification: OrderStatusNotification = (data as TypedNotification).data;
+                for(const l of this.listeners[ClientEvents.onOrderUpdate] || []) {
+                    l(notification);
+                }
             }
 
 
@@ -116,7 +122,7 @@ export class Client {
     getLiveOrders = (accounts:string[]): Promise<LiveOrdersResponse> => new Promise(
         (res, rej) => {
             let req: Partial<LiveOrdersRequest> = {
-                type: IncomingType.LiveOrders,
+                type: MessageType.LiveOrders,
                 accounts
             };
 
@@ -130,7 +136,7 @@ export class Client {
     flash = (symbol:string, account:string, action: ActionType): Promise<any> => {
         return new Promise<any>((res:any, rej:any) => {
             const request: Partial<FlashOrderRequest> = {
-                type: IncomingType.FlashOrder,
+                type: MessageType.FlashOrder,
                 symbol,
                 account,
                 action
@@ -150,7 +156,7 @@ export class Client {
             }
 
             const request: Partial<GetOptionsRequest> = {
-                type: IncomingType.GetOptions,
+                type: MessageType.GetOptions,
                 underlyings
             };
             this.send(request,
@@ -163,7 +169,7 @@ export class Client {
     login = (username: string, password: string): Promise<LoginResponse> => {
         return new Promise((resolve: any, reject: any) => {
             const req: Partial<LoginRequest> = {
-                type: IncomingType.Login,
+                type: MessageType.Login,
                 username,
                 password
             };
