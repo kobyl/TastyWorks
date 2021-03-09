@@ -79,6 +79,15 @@ export class Server {
                 : q.bidPrice + (q.askPrice - q.bidPrice) / 2;
             //    : q.askPrice - tickSize;
 
+            if(q.bidPrice >= 3 && action !== ActionType.BTO) {
+                targetBid = Math.floor(targetBid*100);
+                let digit = targetBid % 10;
+                digit = digit >= 5 ? 5 : 0;
+
+                targetBid = Math.floor(targetBid/10) * 10 + digit;
+                targetBid /= 100;
+            }
+
             targetBid = targetBid.toFixed(2);
 
             console.log(`Flash order ${account}, ${q.officialSymbol}, ${targetBid}`);
